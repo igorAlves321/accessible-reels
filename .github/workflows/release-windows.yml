@@ -26,8 +26,13 @@ jobs:
         shell: powershell
         run: |
           choco install innosetup --no-progress -y
-          $version = "${{ github.ref_name }}" -replace '^v', ''
-          if ($version -notmatch '^\d+(\.\d+)*$') { $version = "0.1.0" }
+          $version = ""
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            if ($env:GITHUB_REF_NAME -notmatch '^v(\d+(\.\d+){0,3})$') {
+              throw "Tag de versão inválida: $env:GITHUB_REF_NAME"
+            }
+            $version = $Matches[1]
+          }
           .\scripts\build_windows_release.ps1 -PythonExe python -AppVersion $version
       - name: Publicar no GitHub
         if: startsWith(github.ref, 'refs/tags/')
