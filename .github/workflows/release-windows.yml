@@ -9,7 +9,31 @@ permissions:
   contents: read
 
 jobs:
+  # Fails in seconds, before the Windows test suite, when the tag does not match
+  # app_version.py. The build script repeats the check as a second barrier.
+  check-version:
+    name: Verificar versão
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Comparar a tag com APP_VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_version=$(python3 -c "import runpy; print(runpy.run_path('app_version.py')['APP_VERSION'])")
+          if ! [[ "$app_version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "::error::APP_VERSION inválida: $app_version"
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "v$app_version" ]]; then
+            echo "::error::A tag $GITHUB_REF_NAME difere de v$app_version (APP_VERSION em app_version.py)."
+            exit 1
+          fi
+          echo "Versão $app_version confirmada."
+
   test:
+    needs: check-version
     uses: ./.github/workflows/ci.yml
 
   build:
